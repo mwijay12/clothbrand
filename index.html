@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VirtualFit: Spatial Try-On · Altraware Technology</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ease:cubic-bezier(.2,.8,.2,1);
+  --sans:"Inter",system-ui,-apple-system,sans-serif;
+  --MH:min(78vh,62vw);
+  --CW:210px;
+  --room:url("https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20261104_080623_c94c85a3-23d5-4a0c-afff-41be1b5b8191.png&w=2400&q=85");
+  --model:url("assets/model.png");
+  --garm:url("https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20261104_080719_f5a4cca2-cf42-4957-ab3b-ddec34d2b71a.png&w=2048&q=85");
+}
+@media (max-width:767px){
+  :root{--MH:min(62vh,128vw)}
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:#e9e4dc;
+  color:#fff;
+  font-family:var(--sans);
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  user-select:none;
+}
+button{
+  font:inherit;
+  color:inherit;
+  background:none;
+  border:none;
+}
+@media (pointer:fine){
+  html,body,button{cursor:none}
+}
+
+/* Glass material */
+.glass{
+  background:linear-gradient(155deg,rgba(250,248,245,.30),rgba(150,144,136,.20) 48%,rgba(205,200,192,.24));
+  backdrop-filter:blur(22px) saturate(1.5);
+  -webkit-backdrop-filter:blur(22px) saturate(1.5);
+  border:1px solid rgba(255,255,255,.5);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7),inset 0 -1px 0 rgba(255,255,255,.12),0 20px 50px -24px rgba(40,30,20,.45);
+}
+
+/* 1. Room */
+.room{
+  position:fixed;
+  inset:-3%;
+  background:var(--room) center/cover no-repeat;
+  filter:blur(2.5px) saturate(1.05);
+  transform:scale(1.08);
+  will-change:transform;
+  z-index:0;
+}
+.room::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:radial-gradient(70% 60% at 50% 45%,rgba(255,252,246,.10),rgba(40,30,20,.16));
+}
+
+/* 2. Ghost word */
+.ghost{
+  position:fixed;
+  left:50%;
+  top:calc(50% - var(--MH) * .42);
+  transform:translate(-50%,0);
+  z-index:2;
+  font-weight:900;
+  font-size:calc(var(--MH) * .42);
+  line-height:.8;
+  letter-spacing:-.04em;
+  color:rgba(255,255,255,.3);
+  -webkit-text-stroke:1px rgba(255,255,255,.35);
+  text-shadow:0 1px 0 rgba(255,255,255,.35);
+  white-space:nowrap;
+  pointer-events:none;
+  will-change:transform;
+}
+.ghost span{
+  display:inline-block;
+  will-change:transform;
+}
+
+/* 4. Tabs */
+.tabs{
+  position:fixed;
+  left:50%;
+  top:4.2vh;
+  transform:translateX(-50%);
+  z-index:30;
+  display:flex;
+  align-items:center;
+  gap:2px;
+  padding:5px;
+  border-radius:999px;
+  max-width:calc(100vw - 24px);
+}
+.tabs .pill{
+  position:absolute;
+  top:5px;
+  left:0;
+  height:38px;
+  border-radius:999px;
+  background:rgba(255,255,255,.92);
+  box-shadow:0 4px 14px -6px rgba(0,0,0,.3);
+  transition:transform .6s var(--ease),width .6s var(--ease);
+  z-index:0;
+  pointer-events:none;
+}
+.tabs button{
+  position:relative;
+  z-index:1;
+  height:38px;
+  padding:0 22px;
+  border-radius:999px;
+  font-size:14px;
+  font-weight:500;
+  color:rgba(30,30,32,.72);
+  white-space:nowrap;
+  transition:color .35s var(--ease);
+}
+.tabs button.active{
+  color:#111;
+}
+
+/* 5. Rail */
+.rail{
+  position:fixed;
+  left:max(18px,1.8vw);
+  top:50%;
+  transform:translateY(-50%);
+  z-index:30;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  padding:8px;
+  border-radius:999px;
+}
+.rail button{
+  width:42px;
+  height:42px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  color:rgba(30,30,32,.8);
+  transition:background .3s var(--ease),color .3s var(--ease),transform .25s var(--ease);
+}
+.rail button:hover{
+  background:rgba(255,255,255,.35);
+}
+.rail button.active{
+  background:rgba(255,255,255,.9);
+  color:#111;
+}
+.rail svg{
+  width:20px;
+  height:20px;
+}
+
+/* Brand badge (top-right subtle Altraware pill) */
+.brand-pill{
+  position:fixed;
+  right:max(18px,1.8vw);
+  top:4.2vh;
+  z-index:30;
+  height:48px;
+  padding:0 16px;
+  border-radius:999px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:12px;
+  font-weight:600;
+  color:#111;
+  letter-spacing:.01em;
+  transition:transform .25s var(--ease),background .3s var(--ease);
+}
+.brand-pill:hover{
+  transform:translateY(-1px);
+  background:rgba(255,255,255,.45);
+}
+.brand-dot{
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:#16a34a;
+  box-shadow:0 0 8px rgba(22,163,74,.65);
+}
+@media (max-width:767px){
+  .brand-pill{display:none}
+}
+
+/* 6. Stage & Arc */
+.stage{
+  position:fixed;
+  inset:0;
+  z-index:10;
+  touch-action:pan-y;
+}
+.arc{
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:0;
+  height:0;
+}
+.card{
+  position:absolute;
+  width:var(--CW);
+  height:calc(var(--CW) * 1.42);
+  margin-left:calc(var(--CW) * -.5);
+  margin-top:calc(var(--CW) * -.71);
+  border-radius:22px;
+  overflow:hidden;
+  will-change:transform,opacity,filter;
+  transform-origin:center center;
+}
+.card .g{
+  position:absolute;
+  left:8%;
+  right:8%;
+  top:5%;
+  height:66%;
+  background-image:var(--garm);
+  background-size:320% 212.5%;
+  background-repeat:no-repeat;
+  filter:drop-shadow(0 14px 14px rgba(40,30,20,.22));
+  pointer-events:none;
+}
+.card .name{
+  position:absolute;
+  left:10%;
+  right:10%;
+  bottom:17%;
+  text-align:center;
+  font-weight:500;
+  font-size:calc(var(--CW) * .068);
+  color:#fff;
+  text-shadow:0 1px 8px rgba(0,0,0,.18);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  pointer-events:none;
+}
+.card .price{
+  position:absolute;
+  left:10%;
+  right:10%;
+  bottom:7%;
+  text-align:center;
+  font-weight:700;
+  font-size:calc(var(--CW) * .095);
+  color:#fff;
+  text-shadow:0 1px 8px rgba(0,0,0,.18);
+  pointer-events:none;
+}
+.card .sheen{
+  position:absolute;
+  inset:-20%;
+  background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.5) 50%,transparent 60%);
+  transform:translateX(-120%);
+  pointer-events:none;
+}
+.card.sheening .sheen{
+  animation:sheen 1s var(--ease) forwards;
+}
+@keyframes sheen{
+  to{transform:translateX(120%)}
+}
+
+/* 7. Model */
+.model{
+  position:fixed;
+  left:50%;
+  bottom:0;
+  transform:translateX(-50%);
+  height:var(--MH);
+  aspect-ratio:524/1360;
+  z-index:50;
+  pointer-events:none;
+}
+.model .fig{
+  position:absolute;
+  inset:0;
+  background-image:var(--model);
+  background-size:500% 100%;
+  background-position-y:100%;
+  background-repeat:no-repeat;
+  will-change:clip-path,transform;
+}
+#mCur{opacity:0}
+#mNext{clip-path:inset(0 0 100% 0)}
+.model .grid{
+  position:absolute;
+  inset:0;
+  background:repeating-linear-gradient(0deg,transparent 0 5px,rgba(255,255,255,.22) 5px 6px);
+  mix-blend-mode:screen;
+  clip-path:inset(0 0 100% 0);
+  pointer-events:none;
+}
+.model .scan{
+  position:absolute;
+  left:-14%;
+  right:-14%;
+  top:0%;
+  height:2px;
+  background:linear-gradient(90deg,transparent,#fff 18%,#fff 82%,transparent);
+  box-shadow:0 0 18px 4px rgba(255,255,255,.75),0 0 60px 10px rgba(190,225,255,.45);
+  opacity:0;
+  pointer-events:none;
+}
+.model .scan::after{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:2px;
+  height:calc(var(--MH) * .12);
+  background:linear-gradient(to top,rgba(220,238,255,.32),transparent);
+}
+
+/* 8. Arrows */
+.arrow{
+  position:fixed;
+  top:50%;
+  transform:translateY(-50%);
+  z-index:30;
+  width:46px;
+  height:46px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  color:#222;
+  transition:transform .25s var(--ease),background .25s var(--ease);
+}
+.arrow:hover{
+  background:rgba(255,255,255,.42);
+}
+.arrow:active{
+  transform:translateY(-50%) scale(.92);
+}
+.arrow svg{
+  width:16px;
+  height:16px;
+}
+#prev{left:calc(max(18px,1.8vw) + 76px)}
+#next{right:max(18px,1.8vw)}
+
+/* 9. Buy card */
+.buy{
+  position:fixed;
+  left:50%;
+  bottom:4.6vh;
+  transform:translateX(-50%);
+  z-index:60;
+  width:min(640px,calc(100vw - 32px));
+  display:flex;
+  align-items:center;
+  gap:22px;
+  padding:12px 22px 12px 12px;
+  border-radius:24px;
+  color:#fff;
+  text-shadow:0 1px 6px rgba(0,0,0,.18);
+}
+.thumb{
+  width:64px;
+  height:64px;
+  flex-shrink:0;
+  border-radius:14px;
+  background:rgba(255,255,255,.3);
+  position:relative;
+  overflow:hidden;
+}
+.thumb-g{
+  position:absolute;
+  inset:6px;
+  background-image:var(--garm);
+  background-size:320% 212.5%;
+  background-repeat:no-repeat;
+  filter:drop-shadow(0 6px 8px rgba(40,30,20,.2));
+}
+.info{
+  min-width:128px;
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+.ln{
+  position:relative;
+  height:1.15em;
+  overflow:hidden;
+}
+.ln span{
+  display:block;
+  white-space:nowrap;
+}
+.info .b-name{font-weight:600;font-size:16px}
+.info .b-price{font-weight:500;font-size:14px;opacity:.9}
+
+.sizes-wrap{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.lbl{
+  font-weight:500;
+  font-size:12px;
+  opacity:.85;
+}
+.sizes{
+  display:flex;
+  gap:6px;
+}
+.sizes button{
+  width:30px;
+  height:30px;
+  border-radius:50%;
+  background:rgba(255,255,255,.22);
+  color:#fff;
+  font-size:12px;
+  font-weight:600;
+  transition:background .25s var(--ease),color .25s var(--ease),transform .15s var(--ease);
+}
+.sizes button.active{
+  background:#fff;
+  color:#111;
+  text-shadow:none;
+}
+.sizes button:active{
+  transform:scale(.9);
+}
+
+.colors-wrap{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  min-width:118px;
+  margin-left:auto;
+}
+.dots{
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+.dots button{
+  width:18px;
+  height:18px;
+  border-radius:50%;
+  transition:box-shadow .25s var(--ease),transform .2s var(--ease);
+}
+.dots button.active{
+  box-shadow:0 0 0 2px rgba(255,255,255,.95),0 0 0 4px rgba(0,0,0,.12);
+}
+
+/* 10. Custom Cursor */
+.cur{
+  position:fixed;
+  left:0;
+  top:0;
+  width:58px;
+  height:58px;
+  margin:-29px 0 0 -29px;
+  z-index:100;
+  pointer-events:none;
+  opacity:0;
+  transition:opacity .25s ease;
+  will-change:transform;
+}
+.cur-ring{
+  position:absolute;
+  inset:0;
+  border-radius:50%;
+  border:1.5px solid rgba(255,255,255,.95);
+  background:rgba(255,255,255,.14);
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+  box-shadow:0 6px 20px -8px rgba(0,0,0,.35);
+  transition:transform .5s var(--ease),background .5s var(--ease),border-color .5s var(--ease);
+}
+.cur-dot{
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:6px;
+  height:6px;
+  margin:-3px 0 0 -3px;
+  border-radius:50%;
+  background:#fff;
+  transition:transform .4s var(--ease),opacity .4s var(--ease);
+}
+.cur-lbl{
+  position:absolute;
+  inset:0;
+  display:grid;
+  place-items:center;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.12em;
+  transform:scale(.6);
+  opacity:0;
+  transition:transform .45s var(--ease),opacity .45s var(--ease);
+}
+.cur-try{color:#111}
+.cur-drag{color:#fff}
+
+.cur.try .cur-ring{
+  transform:scale(1.5);
+  background:rgba(255,255,255,.92);
+}
+.cur.try .cur-dot{opacity:0;transform:scale(0)}
+.cur.try .cur-try{opacity:1;transform:scale(1)}
+
+.cur.drag .cur-ring{transform:scale(1.2)}
+.cur.drag .cur-dot{opacity:0;transform:scale(0)}
+.cur.drag .cur-drag{opacity:1;transform:scale(1)}
+
+.cur.btn .cur-ring{transform:scale(.6)}
+.cur.down .cur-ring{transform:scale(1.05)}
+
+@media (pointer:coarse){
+  .cur{display:none}
+}
+
+/* Altraware Info / Demo Modal */
+.modal-backdrop{
+  position:fixed;
+  inset:0;
+  z-index:80;
+  background:rgba(20,18,15,.28);
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+  display:grid;
+  place-items:center;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .35s var(--ease);
+}
+.modal-backdrop.open{
+  opacity:1;
+  pointer-events:auto;
+}
+.modal{
+  width:min(440px,calc(100vw - 32px));
+  border-radius:26px;
+  padding:24px;
+  color:#111;
+  background:linear-gradient(155deg,rgba(255,255,255,.86),rgba(242,238,232,.78));
+  backdrop-filter:blur(26px) saturate(1.6);
+  -webkit-backdrop-filter:blur(26px) saturate(1.6);
+  border:1px solid rgba(255,255,255,.85);
+  box-shadow:0 30px 70px -20px rgba(20,15,10,.4);
+  transform:translateY(14px) scale(.97);
+  transition:transform .4s var(--ease);
+}
+.modal-backdrop.open .modal{
+  transform:translateY(0) scale(1);
+}
+.modal-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:14px;
+}
+.modal-head h2{
+  font-size:18px;
+  font-weight:700;
+  letter-spacing:-.02em;
+}
+.modal-close{
+  width:32px;
+  height:32px;
+  border-radius:50%;
+  background:rgba(0,0,0,.07);
+  display:grid;
+  place-items:center;
+  font-size:16px;
+  color:#111;
+}
+.modal p{
+  font-size:13.5px;
+  line-height:1.55;
+  color:rgba(17,17,17,.78);
+  margin-bottom:14px;
+}
+.modal-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  padding:14px;
+  border-radius:16px;
+  background:rgba(255,255,255,.55);
+  border:1px solid rgba(255,255,255,.8);
+  font-size:13px;
+}
+.modal-row{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+}
+.modal-row span:first-child{
+  color:rgba(17,17,17,.55);
+  font-weight:500;
+}
+.modal-row a,.modal-row strong{
+  color:#111;
+  font-weight:600;
+  text-decoration:none;
+}
+.modal-cta{
+  margin-top:16px;
+  width:100%;
+  height:42px;
+  border-radius:999px;
+  background:#111;
+  color:#fff;
+  font-size:13.5px;
+  font-weight:600;
+  display:grid;
+  place-items:center;
+  text-decoration:none;
+}
+
+/* 9. Phones */
+@media (max-width:767px){
+  .tabs{
+    overflow-x:auto;
+    scrollbar-width:none;
+  }
+  .tabs::-webkit-scrollbar{display:none}
+  .tabs .pill{height:32px}
+  .tabs button{
+    height:32px;
+    padding:0 13px;
+    font-size:12px;
+  }
+  .rail{
+    left:10px;
+    top:auto;
+    bottom:calc(4.6vh + 150px);
+    transform:none;
+  }
+  .rail button{
+    width:34px;
+    height:34px;
+  }
+  .arrow{display:none}
+  .buy{
+    flex-wrap:wrap;
+    gap:12px 16px;
+    padding:12px 16px;
+  }
+  .colors-wrap{
+    margin-left:0;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="room" id="room"></div>
+
+<div class="ghost" id="ghost" aria-hidden="true">
+  <span>F</span><span>I</span><span>T</span>
+</div>
+
+<nav class="tabs glass" id="tabs" aria-label="Categories">
+  <div class="pill" id="tabPill"></div>
+  <button class="active" data-tab="Tops">Tops</button>
+  <button data-tab="Bottoms">Bottoms</button>
+  <button data-tab="Outerwear">Outerwear</button>
+  <button data-tab="Shoes">Shoes</button>
+  <button data-tab="Accessories">Accessories</button>
+</nav>
+
+<button class="brand-pill glass" id="brandBtn" title="About Altraware Technology">
+  <span class="brand-dot"></span>
+  <span>Altraware · Tanzania</span>
+</button>
+
+<aside class="rail glass" aria-label="Tools">
+  <button class="active" id="railFit" title="Virtual Try-On">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.2 3.5 21 6.2l-2.1 4.2-2.9-1.2V20a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V9.2L5.1 10.4 3 6.2l4.8-2.7a4.3 4.3 0 0 0 8.4 0Z"/></svg>
+  </button>
+  <button id="railCart" title="Order &amp; Bag (Dar es Salaam)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.5"/><circle cx="17" cy="20" r="1.5"/><path d="M3 4h2l2.4 10.5a1.5 1.5 0 0 0 1.5 1.2h8.7a1.5 1.5 0 0 0 1.4-1.1L21 8H7"/></svg>
+  </button>
+  <button id="railCal" title="Book Studio Fitting">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+  </button>
+  <button id="railInfo" title="Altraware Technology Contact">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M5 20a7 7 0 0 1 14 0"/></svg>
+  </button>
+</aside>
+
+<main class="stage" id="stage">
+  <div class="arc" id="arc"></div>
+</main>
+
+<div class="model" id="model">
+  <div class="fig" id="mCur"></div>
+  <div class="fig" id="mNext"></div>
+  <div class="grid" id="mGrid"></div>
+  <div class="scan" id="mScan"></div>
+</div>
+
+<button class="arrow glass" id="prev" aria-label="Previous garment">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+</button>
+<button class="arrow glass" id="next" aria-label="Next garment">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+</button>
+
+<section class="buy glass" id="buy" aria-label="Selected garment">
+  <div class="thumb"><div class="thumb-g" id="bThumb"></div></div>
+  <div class="info">
+    <div class="ln b-name" id="bName"><span>Basic T-shirt</span></div>
+    <div class="ln b-price" id="bPrice"><span>TZS 65,000</span></div>
+  </div>
+  <div class="sizes-wrap">
+    <div class="lbl">Size</div>
+    <div class="sizes" id="bSizes">
+      <button>S</button>
+      <button class="active">M</button>
+      <button>L</button>
+      <button>XL</button>
+    </div>
+  </div>
+  <div class="colors-wrap">
+    <div class="lbl ln" id="bColLbl"><span>Color · White</span></div>
+    <div class="dots" id="bDots"></div>
+  </div>
+</section>
+
+<div class="cur" id="cur" aria-hidden="true">
+  <div class="cur-ring"></div>
+  <div class="cur-dot"></div>
+  <div class="cur-lbl cur-try">TRY ON</div>
+  <div class="cur-lbl cur-drag">DRAG</div>
+</div>
+
+<!-- Altraware Technology Demo & Contact Modal -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-head">
+      <h2 id="modalTitle">Altraware Technology</h2>
+      <button class="modal-close" id="modalClose" aria-label="Close">✕</button>
+    </div>
+    <p>
+      Spatial Virtual Try-On experience built in Dar es Salaam for Tanzanian fashion &amp; retail brands. Drag, flick, or tap any garment to preview it live.
+    </p>
+    <div class="modal-list">
+      <div class="modal-row">
+        <span>Studio</span>
+        <strong>Altraware Technology</strong>
+      </div>
+      <div class="modal-row">
+        <span>Website</span>
+        <a href="https://altra.tanzaniareach.com" target="_blank" rel="noopener">altra.tanzaniareach.com</a>
+      </div>
+      <div class="modal-row">
+        <span>Location</span>
+        <strong>Dar es Salaam, Tanzania</strong>
+      </div>
+      <div class="modal-row">
+        <span>Email</span>
+        <a href="mailto:hello@altra.tanzaniareach.com">hello@altra.tanzaniareach.com</a>
+      </div>
+    </div>
+    <a class="modal-cta" href="https://altra.tanzaniareach.com" target="_blank" rel="noopener">Visit altra.tanzaniareach.com</a>
+  </div>
+</div>
+
+<script>
+const ITEMS=[
+  {n:"Basic T-shirt", p:65000,  g:[1.14,3.06],  m:0,    c:[["White","#f4f2ee"],["Ash","#c9c7c2"],["Charcoal","#3b3c3f"],["Navy","#27324d"]]},
+  {n:"Basic Sweater", p:145000, g:[49.7,1.39],  m:25,   c:[["White","#f6f4ef"],["Oat","#ddd3c2"],["Sage","#b9c2ae"],["Black","#1f1f21"]]},
+  {n:"Linen Shirt",   p:130000, g:[98.2,3.33],  m:50,   c:[["White","#f7f6f1"],["Sand","#d9ccb4"],["Sky","#bcd0e2"],["Olive","#717556"]]},
+  {n:"Grey Hoodie",   p:155000, g:[1.14,93.3],  m:75,   c:[["Heather","#a9a9a8"],["Bone","#e6e1d6"],["Forest","#33463a"],["Black","#1f1f21"]]},
+  {n:"Ringer Tee",    p:75000,  g:[49.7,95.3],  m:100,  c:[["White / Black","#f4f2ee"],["Cream / Navy","#efe6d3"],["Grey / Red","#c9c7c2"],["White / Green","#e9efe8"]]},
+];
+const fmtTZS=v=>"TZS "+v.toLocaleString("en-TZ");
+
+const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
+const mod=(n,m)=>((n%m)+m)%m;
+
+// Remove solid studio background from assets/model.png on load
+(()=>{
+  const img=new Image();
+  img.crossOrigin="anonymous";
+  img.onload=()=>{
+    const c=document.createElement("canvas");
+    c.width=img.naturalWidth;
+    c.height=img.naturalHeight;
+    const ctx=c.getContext("2d");
+    ctx.drawImage(img,0,0);
+    const id=ctx.getImageData(0,0,c.width,c.height);
+    const d=id.data;
+    const r0=d[0],g0=d[1],b0=d[2];
+    for(let i=0;i<d.length;i+=4){
+      const dr=d[i]-r0,dg=d[i+1]-g0,db=d[i+2]-b0;
+      const dist=Math.sqrt(dr*dr+dg*dg+db*db);
+      if(dist<16) d[i+3]=0;
+      else if(dist<34) d[i+3]=Math.round(((dist-16)/18)*255);
+    }
+    ctx.putImageData(id,0,0);
+    c.toBlob(blob=>{
+      if(!blob)return;
+      const url=URL.createObjectURL(blob);
+      document.documentElement.style.setProperty("--model",`url("${url}")`);
+    },"image/png");
+  };
+  img.src="assets/model.png";
+})();
+
+// DOM refs
+const room=document.getElementById("room");
+const ghost=document.getElementById("ghost");
+const ghostLetters=[...ghost.querySelectorAll("span")];
+const arcEl=document.getElementById("arc");
+const stage=document.getElementById("stage");
+const mCur=document.getElementById("mCur");
+const mNext=document.getElementById("mNext");
+const mGrid=document.getElementById("mGrid");
+const mScan=document.getElementById("mScan");
+const bThumb=document.getElementById("bThumb");
+const bName=document.getElementById("bName");
+const bPrice=document.getElementById("bPrice");
+const bColLbl=document.getElementById("bColLbl");
+const bDots=document.getElementById("bDots");
+const bSizes=document.getElementById("bSizes");
+const tabsEl=document.getElementById("tabs");
+const tabPill=document.getElementById("tabPill");
+const curEl=document.getElementById("cur");
+
+// Build 10 cards (2 copies of 5 items)
+const cards=[];
+for(let i=0;i<10;i++){
+  const item=ITEMS[i%5];
+  const el=document.createElement("div");
+  el.className="card glass";
+  el.dataset.idx=i;
+  el.innerHTML=`
+    <div class="g" style="background-position:${item.g[0]}% ${item.g[1]}%"></div>
+    <div class="name">${item.n}</div>
+    <div class="price">${fmtTZS(item.p)}</div>
+    <div class="sheen"></div>
+  `;
+  el.addEventListener("mouseenter",()=>{
+    if(reduced)return;
+    el.classList.remove("sheening");
+    void el.offsetWidth;
+    el.classList.add("sheening");
+  });
+  arcEl.appendChild(el);
+  cards.push({el,seed:i*1.37});
+}
+
+// Responsive sizing
+let W=innerWidth,H=innerHeight,XS=[];
+function measure(){
+  W=innerWidth;
+  H=innerHeight;
+  const phone=W<768;
+  const CW=phone?Math.min(W*.30,170):Math.min(W*.148,H*.33);
+  document.documentElement.style.setProperty("--CW",CW+"px");
+  const t=phone?[0,.36,.5,.56,.6,.62]:[0,.215,.345,.432,.49,.52];
+  XS=t.map(v=>v*W);
+}
+measure();
+addEventListener("resize",()=>{measure();positionTabPill();});
+
+function xAt(a){
+  const idx=Math.min(4,Math.floor(a));
+  const f=Math.min(1,a-idx);
+  return XS[idx]+(XS[idx+1]-XS[idx])*f;
+}
+
+// State
+let pos=0,target=0,dragging=false;
+let intro=reduced?1:0;
+let shownOutfit=-1;
+let px=0,py=0,sx=0,sy=0;
+let cx=W/2,cy=H/2,tx=W/2,ty=H/2;
+let activeScan=[];
+
+// Rolling text helper
+function rollText(container,text){
+  const oldSpan=container.querySelector("span");
+  if(reduced){
+    oldSpan.textContent=text;
+    return;
+  }
+  const newSpan=document.createElement("span");
+  newSpan.textContent=text;
+  newSpan.style.position="absolute";
+  newSpan.style.left="0";
+  newSpan.style.top="0";
+  newSpan.style.width="100%";
+  container.appendChild(newSpan);
+
+  const ease="cubic-bezier(.2,.8,.2,1)";
+  oldSpan.animate([{transform:"translateY(0)"},{transform:"translateY(-110%)"}],{duration:620,easing:ease,fill:"forwards"}).onfinish=()=>oldSpan.remove();
+  newSpan.animate([{transform:"translateY(110%)"},{transform:"translateY(0)"}],{duration:620,easing:ease,fill:"forwards"}).onfinish=()=>{
+    newSpan.style.position="";
+  };
+}
+
+function updateBuyCard(item){
+  bThumb.style.backgroundPosition=`${item.g[0]}% ${item.g[1]}%`;
+  if(!reduced){
+    bThumb.animate([
+      {transform:"translateY(70%) scale(.8)"},
+      {transform:"translateY(0) scale(1)"}
+    ],{duration:650,easing:"cubic-bezier(.2,.8,.2,1)"});
+  }
+  rollText(bName,item.n);
+  rollText(bPrice,fmtTZS(item.p));
+
+  bDots.innerHTML="";
+  item.c.forEach(([cname,hex],idx)=>{
+    const btn=document.createElement("button");
+    btn.style.background=hex;
+    btn.title=cname;
+    if(idx===0)btn.classList.add("active");
+    btn.addEventListener("click",()=>{
+      bDots.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+      rollText(bColLbl,"Color · "+cname);
+    });
+    bDots.appendChild(btn);
+  });
+  rollText(bColLbl,"Color · "+item.c[0][0]);
+}
+
+function runTryOn(itemIdx){
+  shownOutfit=itemIdx;
+  const item=ITEMS[itemIdx];
+  updateBuyCard(item);
+
+  activeScan.forEach(a=>a.cancel());
+  activeScan=[];
+
+  mNext.style.backgroundPositionX=item.m+"%";
+
+  if(reduced){
+    mCur.style.backgroundPositionX=item.m+"%";
+    mCur.style.opacity="1";
+    mNext.style.clipPath="inset(0 0 100% 0)";
+    return;
+  }
+
+  const easeScan="cubic-bezier(.65,0,.35,1)";
+  const aClip=mNext.animate([
+    {clipPath:"inset(0 0 100% 0)"},
+    {clipPath:"inset(0 0 0% 0)"}
+  ],{duration:950,easing:easeScan,fill:"forwards"});
+
+  const aGrid=mGrid.animate([
+    {clipPath:"inset(0 0 100% 0)"},
+    {clipPath:"inset(0 0 0% 0)",offset:.5},
+    {clipPath:"inset(100% 0 0 0)"}
+  ],{duration:1092,easing:easeScan});
+
+  const aScan=mScan.animate([
+    {top:"0%",transform:"scaleX(.2)",opacity:0},
+    {top:"6%",transform:"scaleX(1)",opacity:1,offset:.08},
+    {top:"94%",transform:"scaleX(1)",opacity:1,offset:.92},
+    {top:"100%",transform:"scaleX(.2)",opacity:0}
+  ],{duration:950,easing:easeScan});
+
+  const aSettle=mNext.animate([
+    {transform:"scale(1.012)"},
+    {transform:"scale(1)"}
+  ],{duration:1250,easing:"ease-out"});
+
+  activeScan=[aClip,aGrid,aScan,aSettle];
+
+  aClip.onfinish=()=>{
+    mCur.style.backgroundPositionX=item.m+"%";
+    mCur.style.opacity="1";
+    activeScan.forEach(a=>a.cancel());
+    activeScan=[];
+  };
+}
+
+// Animation loop
+function frame(now){
+  const t=now*0.001;
+  if(!dragging){
+    pos+=reduced?(target-pos):(target-pos)*0.11;
+  }
+  if(intro<1){
+    intro=Math.min(1,intro+0.012);
+  }
+  const ie=1-Math.pow(1-intro,3);
+
+  sx+=(px-sx)*0.06;
+  sy+=(py-sy)*0.06;
+
+  // Parallax
+  room.style.transform=`translate3d(${-sx*22}px,${-sy*14}px,0) scale(${1.08-0.03*ie})`;
+  ghost.style.transform=`translate(calc(-50% - ${sx*40}px),${-sy*16}px)`;
+  ghostLetters.forEach((sp,i)=>{
+    sp.style.transform=`translateY(${(1-ie)*(60+30*i)}px)`;
+  });
+
+  // Cards
+  cards.forEach((c,i)=>{
+    const u=mod(i-pos+5,10)-5;
+    const a=Math.abs(u);
+    const sg=Math.sign(u);
+    const x=sg*xAt(a)*ie;
+
+    let s,z,ry,op,blur=0;
+    if(a<1){
+      s=0.55+0.45*a;
+      z=-260*(1-a);
+      op=a;
+      ry=-sg*16*a;
+    }else{
+      s=1/(1+0.3*Math.pow(a-1,1.15));
+      z=-110*(a-1);
+      ry=-sg*(16+9*Math.min(2,a-1));
+      blur=Math.max(0,a-1.6)*2.4;
+      op=a>3.4?1-(a-3.4)/0.8:1;
+    }
+    op=Math.max(0,Math.min(1,op))*ie;
+    const bob=reduced?0:Math.sin(t*1.1+c.seed)*H*0.006*Math.min(1,a);
+    const y=bob-(1-s)*H*0.04;
+    ry+=sx*10;
+
+    const el=c.el;
+    if(op<0.01){
+      el.style.visibility="hidden";
+    }else{
+      el.style.visibility="visible";
+      el.style.opacity=op;
+      el.style.zIndex=a<1?1:Math.round(100-10*a);
+      el.style.filter=blur>0.1?`blur(${blur.toFixed(1)}px)`:"none";
+      el.style.transform=`translate(${x}px,${y}px) perspective(1300px) translateZ(${z}px) rotateY(${ry}deg) rotateX(${-sy*6}deg) scale(${s*(0.6+0.4*ie)})`;
+    }
+  });
+
+  // Settle check
+  if(!dragging && Math.abs(target-pos)<0.02){
+    const idx=mod(Math.round(target),5);
+    if(idx!==shownOutfit){
+      runTryOn(idx);
+    }
+  }
+
+  // Cursor follow
+  cx+=(tx-cx)*0.22;
+  cy+=(ty-cy)*0.22;
+  curEl.style.transform=`translate3d(${cx}px,${cy}px,0)`;
+
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// Input: Drag & Click
+let downX=0,downY=0,p0=0,lastX=0,lastT=0,vel=0,moved=false;
+stage.addEventListener("pointerdown",e=>{
+  dragging=true;
+  moved=false;
+  downX=lastX=e.clientX;
+  downY=e.clientY;
+  p0=pos;
+  lastT=performance.now();
+  vel=0;
+  stage.setPointerCapture(e.pointerId);
+  curEl.classList.add("down","drag");
+});
+stage.addEventListener("pointermove",e=>{
+  if(!dragging)return;
+  const dx=e.clientX-downX;
+  if(Math.abs(dx)>6||Math.abs(e.clientY-downY)>6)moved=true;
+  pos=p0-dx/XS[1];
+  const now=performance.now();
+  const dt=now-lastT;
+  if(dt>0){
+    vel=(e.clientX-lastX)/dt;
+    lastX=e.clientX;
+    lastT=now;
+  }
+});
+stage.addEventListener("pointerup",e=>{
+  if(!dragging)return;
+  dragging=false;
+  curEl.classList.remove("down","drag");
+  if(!moved){
+    const cardEl=e.target.closest(".card");
+    if(cardEl){
+      const idx=Number(cardEl.dataset.idx);
+      const u=mod(idx-pos+5,10)-5;
+      target=Math.round(pos+u);
+      return;
+    }
+  }
+  target=Math.round(pos-vel*3.2);
+});
+
+// Wheel
+let wheelAcc=0,lastStep=0;
+addEventListener("wheel",e=>{
+  const d=Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY;
+  wheelAcc+=d;
+  const now=performance.now();
+  if(Math.abs(wheelAcc)>=60 && now-lastStep>=260){
+    target+=wheelAcc>0?1:-1;
+    wheelAcc=0;
+    lastStep=now;
+  }
+},{passive:true});
+
+// Keys & Arrows
+addEventListener("keydown",e=>{
+  if(e.key==="ArrowRight")target+=1;
+  else if(e.key==="ArrowLeft")target-=1;
+});
+document.getElementById("prev").addEventListener("click",()=>target-=1);
+document.getElementById("next").addEventListener("click",()=>target+=1);
+
+// Tabs
+function positionTabPill(){
+  const active=tabsEl.querySelector("button.active");
+  if(!active)return;
+  tabPill.style.width=active.offsetWidth+"px";
+  tabPill.style.transform=`translateX(${active.offsetLeft}px)`;
+}
+positionTabPill();
+tabsEl.querySelectorAll("button").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    if(btn.classList.contains("active"))return;
+    tabsEl.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    positionTabPill();
+    target+=5;
+  });
+});
+
+// Sizes
+bSizes.querySelectorAll("button").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    bSizes.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+  });
+});
+
+// Pointer tracking for parallax & cursor
+addEventListener("pointermove",e=>{
+  tx=e.clientX;
+  ty=e.clientY;
+  px=e.clientX/W-0.5;
+  py=e.clientY/H-0.5;
+  curEl.style.opacity="1";
+
+  if(dragging)return;
+  const el=e.target;
+  curEl.classList.remove("try","drag","btn");
+  if(el.closest("button,a")){
+    curEl.classList.add("btn");
+  }else if(el.closest(".card")){
+    curEl.classList.add("try");
+  }else if(el.closest(".stage")){
+    curEl.classList.add("drag");
+  }
+});
+
+// Altraware Modal
+const modalBackdrop=document.getElementById("modalBackdrop");
+const openModal=()=>modalBackdrop.classList.add("open");
+const closeModal=()=>modalBackdrop.classList.remove("open");
+document.getElementById("brandBtn").addEventListener("click",openModal);
+document.getElementById("railInfo").addEventListener("click",openModal);
+document.getElementById("railCal").addEventListener("click",openModal);
+document.getElementById("railCart").addEventListener("click",openModal);
+document.getElementById("modalClose").addEventListener("click",closeModal);
+modalBackdrop.addEventListener("click",e=>{
+  if(e.target===modalBackdrop)closeModal();
+});
+</script>
+</body>
+</html>
